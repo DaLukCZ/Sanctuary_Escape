@@ -1,0 +1,21 @@
+{
+  "Version": 1,
+  "ProjectMap": {
+    "b7d287fb-1808-711b-bb12-44b769c1a7b6": {
+      "ProjectGuid": "b7d287fb-1808-711b-bb12-44b769c1a7b6",
+      "DisplayName": "Assembly-CSharp",
+      "ColorIndex": 0
+    },
+    "a2fe74e1-b743-11d0-ae1a-00a0c90fffc3": {
+      "ProjectGuid": "a2fe74e1-b743-11d0-ae1a-00a0c90fffc3",
+      "DisplayName": "Ostatní soubory",
+      "ColorIndex": -1
+    },
+    "0607ce3d-7ee5-a1e2-d96c-3903a3f283fe": {
+      "ProjectGuid": "0607ce3d-7ee5-a1e2-d96c-3903a3f283fe",
+      "DisplayName": "Assembly-CSharp-Editor",
+      "ColorIndex": 1
+    }
+  },
+  "NextColorIndex": 2
+}

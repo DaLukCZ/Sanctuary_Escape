@@ -6,61 +6,197 @@ using UnityEngine.UI;
 
 public class PlayerMotor : MonoBehaviour
 {
-    private CharacterController controller;
-    private Vector3 playerVelocity;
-    private bool isGrounded;
-    private bool crouching;
-    private bool sprinting;
-    private bool lerpCrouch;
-    public float speed = 5f;
-    public float gravity = -9.8f;
-    public float jumpHeight = 3f;
-    public float crouchTimer = 0f;
+    [Header("Movement")]
+    private float movementSpeed;
+    public float walkSpeed;
+    public float sprintSpeed;
 
-    public float maxSprintTime = 10f;
-    public float currentSprintTime;
-    private float lerpTimer;
+    public float staminaRecoveryRate = 1f;
+    public float maxStamina = 100f;
+    private float currentStamina;
+    private bool isSprinting;
+
+    [Header("Jumping")]
+    public float jumpForce = 10f;
+    public float jumpCooldown;
+    private bool readyToJump;
+    public float airMultiplier;
+
+    [Header("Crouching")]
+    public float crouchSpeed;
+    public float crouchYScale;
+    private float startYScale;
+
+    [Header("Keybinds")]
+    public KeyCode jumpKey = KeyCode.Space;
+    public KeyCode spintKey = KeyCode.LeftShift;
+    public KeyCode crouchKey = KeyCode.C;
+
+    public float groundDrag;
+
+    [Header("Ground Check")]
+    public float playerHeight;
+    public LayerMask ground;
+    bool isGrounded;
+
+    [Header("Orientation")]
+    public Transform orientation;
+
+    [Header("StaminaBar")]
     public float chipSpeed = 2f;
     public Image frontStaminaBar;
+    private float lerpTimer;
     public Image backStaminaBar;
+
+    float horizontalInput;
+    float verticalInput;
+
+    Vector3 moveDirection;
+
+    Rigidbody rb;
+
+    public MovementState state;
+    public enum MovementState
+    {
+        walking,
+        sprinting,
+        crouching,
+        air
+    }
+
     // Start is called before the first frame update
     void Start()
     {
-        controller = GetComponent<CharacterController>();
-        currentSprintTime = maxSprintTime;
+        rb = GetComponent<Rigidbody>();
+        rb.freezeRotation = true;
+
+        readyToJump = true;
+
+        startYScale = transform.localScale.y;
+
+        currentStamina = maxStamina;
+    }
+
+    private void FixedUpdate()
+    {
+        HandleMovement();
     }
 
     // Update is called once per frame
-    void Update()
+    private void Update()
     {
-        isGrounded = controller.isGrounded;
-        currentSprintTime = Mathf.Clamp(currentSprintTime, 0, maxSprintTime);
-        UpdateHealthUI();
+        isGrounded = Physics.Raycast(transform.position, Vector3.down, playerHeight * 0.5f + 0.2f, ground);
 
-        if (lerpCrouch)
+        MyInput();
+        SpeedControl();
+        StateHandler();
+        
+        if (isGrounded)
+            rb.drag = groundDrag;
+        else
+            rb.drag = 0;
+    }
+
+    private void MyInput()
+    {
+        horizontalInput = Input.GetAxis("Horizontal");
+        verticalInput = Input.GetAxis("Vertical");
+
+        if (Input.GetKeyDown(jumpKey) && isGrounded && readyToJump)
         {
-            crouchTimer += Time.deltaTime;
-            float p = crouchTimer / 1;
-            p *= p;
-            if (crouching)
-                controller.height = Mathf.Lerp(controller.height, 1, p);
-            else
-                controller.height = Mathf.Lerp(controller.height, 2, p);
-
-            if (p > 1)
-            {
-                lerpCrouch = false;
-                crouchTimer = 0f;
-            }
+            readyToJump = false;
+            HandleJump();
+            Invoke(nameof(ResetJump), jumpCooldown);
         }
 
+        if (Input.GetKey(crouchKey))
+        {
+            transform.localScale = new Vector3(transform.localScale.x, crouchYScale, transform.localScale.z);
+            state = MovementState.crouching;
+            movementSpeed = crouchSpeed;
+        }
+        else
+        {
+            transform.localScale = new Vector3(transform.localScale.x, startYScale, transform.localScale.z);
+            state = isGrounded && Input.GetKey(spintKey) ? MovementState.sprinting : MovementState.walking;
+            movementSpeed = isSprinting ? sprintSpeed : walkSpeed;
+        }
     }
+
+    private void StateHandler()
+    {
+        
+        if (Input.GetKeyDown(crouchKey))
+        {
+            state = MovementState.crouching;
+            movementSpeed = crouchSpeed;
+        }
+
+        if (isGrounded && Input.GetKeyDown(spintKey))
+        {
+            state = MovementState.sprinting;
+            movementSpeed = sprintSpeed;
+        }
+        else if (isGrounded)
+        {
+            state = MovementState.walking;
+            movementSpeed = walkSpeed;
+        }
+        else
+        {
+            state = MovementState.air;
+        }
+    }
+
+    private void HandleMovement()
+    {
+        moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
+
+        if(isGrounded)
+            rb.AddForce(moveDirection.normalized * movementSpeed * 10f, ForceMode.Force);
+
+        else if(!isGrounded)
+            rb.AddForce(moveDirection.normalized * movementSpeed * 10f * airMultiplier, ForceMode.Force);
+    }
+
+    private void SpeedControl()
+    {
+        Vector3 flatVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
+
+        if(flatVel.magnitude > movementSpeed)
+        {
+            Vector3 limitedVel = flatVel.normalized * movementSpeed;
+            rb.velocity = new Vector3(limitedVel.x, rb.velocity.y, limitedVel.z);
+        }
+    }
+
+    private void HandleJump()
+    {
+        rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
+        rb.AddForce(transform.up * jumpForce, ForceMode.Impulse);
+    }
+
+    private void ResetJump()
+    {
+        readyToJump = true;
+    }
+
+    private void HandleStamina()
+    {
+        if (currentStamina < maxStamina && !isSprinting)
+        {
+            currentStamina += staminaRecoveryRate * Time.deltaTime;
+        }
+
+        currentStamina = Mathf.Clamp(currentStamina, 0f, maxStamina);
+    }
+
 
     private void UpdateHealthUI()
     {
         float fillFront = frontStaminaBar.fillAmount;
         float fillBack = backStaminaBar.fillAmount;
-        float sFraction = currentSprintTime / maxSprintTime;
+        float sFraction = currentStamina / maxStamina;
         if (fillBack > sFraction)
         {
             frontStaminaBar.fillAmount = sFraction;
@@ -77,55 +213,5 @@ public class PlayerMotor : MonoBehaviour
             percentComplete = percentComplete * percentComplete;
             frontStaminaBar.fillAmount = Mathf.Lerp(fillFront, backStaminaBar.fillAmount, percentComplete);
         }
-    }
-
-    public void Relax()
-    {
-        lerpTimer = 10f;
-        currentSprintTime++;
-    }
-
-    public void Sprint()
-    {
-        sprinting = !sprinting;
-        if (sprinting)
-        {
-            speed = 8;
-            currentSprintTime--;
-        }
-        else
-        {
-            speed = 5;
-            Relax();
-        }
-    }
-
-    //dostane input pro InputManager
-    public void ProcessMove(Vector2 input)
-    {
-        Vector3 movedirection = Vector3.zero;
-        movedirection.x = input.x;
-        movedirection.z = input.y;
-        controller.Move(transform.TransformDirection(movedirection) * speed * Time.deltaTime);
-        if (isGrounded && playerVelocity.y < 0)
-            playerVelocity.y = -2f;
-        playerVelocity.y += gravity * Time.deltaTime;
-        controller.Move(playerVelocity * Time.deltaTime);
-
-    }
-
-    public void Jump()
-    {
-        if (isGrounded)
-        {
-            playerVelocity.y = Mathf.Sqrt(jumpHeight * -3f * gravity);
-        }
-    }
-
-    public void Crouch()
-    {
-        crouching = !crouching;
-        crouchTimer = 0;
-        lerpCrouch = true;
     }
 }

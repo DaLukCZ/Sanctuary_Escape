@@ -22,6 +22,11 @@ public class PlayerHealth : MonoBehaviour
     {
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
         UpdateHealthUI();
+
+        if (Input.GetKeyDown(KeyCode.T))
+        {
+            TakeDamage(40);
+        }
     }
 
     public void UpdateHealthUI()

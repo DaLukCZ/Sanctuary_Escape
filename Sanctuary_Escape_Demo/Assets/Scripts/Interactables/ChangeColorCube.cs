@@ -14,13 +14,17 @@ public class ChangeColorCube : Interactable
     private Vector3 rotationDirection = new Vector3(1f, 1f, 1f);
     private float surpriseTime = 10f;
     private bool surpriseActive = false;
+    private float colorChangeInterval = 2f; // Change color every 2 seconds
+    private float slowColorChangeSpeed = 0.1f; // Slow color change speed
+    private float fastColorChangeSpeed = 0.5f; // Fast color change speed
+    private bool isSpinning = false;
 
     // Start is called before the first frame update
     void Start()
     {
         mesh = GetComponent<MeshRenderer>();
         mesh.material.color = Color.white;
-        InvokeRepeating("ChangeColor", 0.5f, 0.5f);
+        InvokeRepeating("ChangeColor", colorChangeInterval, colorChangeInterval);
     }
 
     void Update()
@@ -55,6 +59,13 @@ public class ChangeColorCube : Interactable
             StartCoroutine(ActivateSurprise());
             surpriseActive = true;
         }
+
+        // If it's spinning, increase the rotation speed and color change speed
+        if (isSpinning)
+        {
+            rotationSpeed += Time.deltaTime * 100f;
+            colorChangeInterval -= Time.deltaTime * 0.1f;
+        }
     }
 
     protected override void Interact()
@@ -64,20 +75,12 @@ public class ChangeColorCube : Interactable
             return;
         }
 
-        // Accelerate rotation speed and color changing for 6 seconds
-        StartCoroutine(AccelerateRotationAndColor());
+        // Start spinning and increase the rotation and color change speed
+        isSpinning = true;
+        StartCoroutine(SlowDown());
 
-        if (colorChanges < 10)
-        {
-            // Change the color of the cube
-            ChangeColor();
-        }
-        else
-        {
-            // Start the explosion
-            exploding = true;
-            StartCoroutine(Explode());
-        }
+        // Change the color of the cube
+        ChangeColor();
     }
 
     void ChangeColor()
@@ -90,62 +93,76 @@ public class ChangeColorCube : Interactable
         colorChanges++;
     }
 
-    IEnumerator AccelerateRotationAndColor()
+    IEnumerator SlowDown()
     {
-        float initialRotationSpeed = rotationSpeed;
-        float accelerationTime = 6f;
-        float elapsedTime = 0f;
+        yield return new WaitForSeconds(5);
 
-        while (elapsedTime < accelerationTime)
-        {
-            // Accelerate the rotation speed and color changing
-            rotationSpeed += Time.deltaTime * 100f;
-            ChangeColor();
-
-            elapsedTime += Time.deltaTime;
-            yield return null;
-        }
-
-        // Reset the rotation speed to its initial value
-        rotationSpeed = initialRotationSpeed;
-    }
-
-    IEnumerator Explode()
-    {
-        yield return new WaitForSeconds(2);
-        Destroy(gameObject);
+        // Stop spinning and reset rotation and color change speed
+        isSpinning = false;
+        rotationSpeed = 50f;
+        colorChangeInterval = 2f;
     }
 
     IEnumerator ActivateSurprise()
     {
+        // Slow down color change speed
+        float colorChangeDelay = 0.1f;
+
         // Make the cube spin faster
         float originalRotationSpeed = rotationSpeed;
-        Vector3 originalScale = transform.localScale;
         float surpriseDuration = 10f;
         float elapsedTime = 0f;
+
+        // Gradually increase the color change delay
+        float maxColorChangeDelay = 1f;
+        float colorChangeDelayIncrement = (maxColorChangeDelay - colorChangeDelay) / (surpriseDuration / colorChangeDelay);
+        float currentColorChangeDelay = colorChangeDelay;
 
         while (elapsedTime < surpriseDuration)
         {
             // Change the rotation speed randomly
-            float newRotationSpeed = originalRotationSpeed + Random.Range(-50f, 50f);
-            rotationSpeed = Mathf.Clamp(newRotationSpeed, 0f, 200f);
+            float newRotationSpeed = originalRotationSpeed + Random.Range(-100f, 100f);
+            rotationSpeed = Mathf.Clamp(newRotationSpeed, 0f, 500f);
 
-            // Change the scale of the cube periodically
-            float sizeMultiplier = Mathf.PingPong(elapsedTime * 2f, 1f) * 2f;
-            transform.localScale = originalScale * sizeMultiplier;
+            // Gradually increase the color change delay
+            if (currentColorChangeDelay < maxColorChangeDelay)
+            {
+                currentColorChangeDelay += colorChangeDelayIncrement * Time.deltaTime;
+            }
+
+            // Change the color of the cube
+            if (Time.timeSinceLevelLoad % currentColorChangeDelay < Time.deltaTime)
+            {
+                ChangeColor();
+            }
 
             elapsedTime += Time.deltaTime;
             yield return null;
         }
 
-        // Play a surprise sound and reset the cube
+        // Play a surprise sound
         AudioSource audioSource = GetComponent<AudioSource>();
         if (audioSource != null && audioSource.clip != null)
         {
             audioSource.Play();
         }
 
+        // Reset the rotation speed and color change delay
         rotationSpeed = originalRotationSpeed;
-        transform.localScale = originalScale;
+        currentColorChangeDelay = colorChangeDelay;
+
+        // Gradually decrease the color change delay to its original value
+        while (currentColorChangeDelay > colorChangeDelay)
+        {
+            currentColorChangeDelay -= colorChangeDelayIncrement * Time.deltaTime;
+            yield return null;
+        }
+
+        // Set the color of the cube back to white
+        mesh.material.color = Color.white;
+
+        // Reset exploding flag and color change counter
+        exploding = false;
+        colorChanges = 0;
     }
 }

@@ -1,12 +1,8 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public abstract class Interactable : MonoBehaviour
 {
     public bool useEvents;
-
-    [SerializeField]
     public string promptMessage;
 
     public virtual string OnLook()
@@ -17,11 +13,10 @@ public abstract class Interactable : MonoBehaviour
     public void BaseInteract()
     {
         if (useEvents)
-            GetComponent<InteractionEvent>().OnInteract.Invoke();
+            GetComponent<Interactor>().OnInteract.Invoke();
+
         Interact();
     }
-    protected virtual void Interact()
-    {
 
-    }
+    protected abstract void Interact();
 }

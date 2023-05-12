@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -7,7 +6,7 @@ using UnityEngine.UI;
 public class PlayerMotor : MonoBehaviour
 {
     [Header("Movement")]
-    private float movementSpeed;
+    public float movementSpeed;
     public float walkSpeed;
     public float sprintSpeed;
 
@@ -29,10 +28,8 @@ public class PlayerMotor : MonoBehaviour
 
     [Header("Keybinds")]
     public KeyCode jumpKey = KeyCode.Space;
-    public KeyCode spintKey = KeyCode.LeftShift;
+    public KeyCode sprintKey = KeyCode.LeftShift;
     public KeyCode crouchKey = KeyCode.C;
-
-    public float groundDrag;
 
     [Header("Ground Check")]
     public float playerHeight;
@@ -58,10 +55,10 @@ public class PlayerMotor : MonoBehaviour
     public MovementState state;
     public enum MovementState
     {
-        walking,
-        sprinting,
-        crouching,
-        air
+        Walking,
+        Sprinting,
+        Crouching,
+        Air
     }
 
     // Start is called before the first frame update
@@ -90,11 +87,13 @@ public class PlayerMotor : MonoBehaviour
         MyInput();
         SpeedControl();
         StateHandler();
-        
+
         if (isGrounded)
-            rb.drag = groundDrag;
+            rb.drag = 5f;
         else
-            rb.drag = 0;
+            rb.drag = 0f;
+
+        HandleStamina();
     }
 
     private void MyInput()
@@ -112,39 +111,38 @@ public class PlayerMotor : MonoBehaviour
         if (Input.GetKey(crouchKey))
         {
             transform.localScale = new Vector3(transform.localScale.x, crouchYScale, transform.localScale.z);
-            state = MovementState.crouching;
+            state = MovementState.Crouching;
             movementSpeed = crouchSpeed;
         }
         else
         {
             transform.localScale = new Vector3(transform.localScale.x, startYScale, transform.localScale.z);
-            state = isGrounded && Input.GetKey(spintKey) ? MovementState.sprinting : MovementState.walking;
+            state = isGrounded && Input.GetKey(sprintKey) ? MovementState.Sprinting : MovementState.Walking;
             movementSpeed = isSprinting ? sprintSpeed : walkSpeed;
         }
     }
 
     private void StateHandler()
     {
-        
         if (Input.GetKeyDown(crouchKey))
         {
-            state = MovementState.crouching;
+            state = MovementState.Crouching;
             movementSpeed = crouchSpeed;
         }
 
-        if (isGrounded && Input.GetKeyDown(spintKey))
+        if (isGrounded && Input.GetKeyDown(sprintKey))
         {
-            state = MovementState.sprinting;
+            state = MovementState.Sprinting;
             movementSpeed = sprintSpeed;
         }
         else if (isGrounded)
         {
-            state = MovementState.walking;
+            state = MovementState.Walking;
             movementSpeed = walkSpeed;
         }
         else
         {
-            state = MovementState.air;
+            state = MovementState.Air;
         }
     }
 
@@ -152,18 +150,21 @@ public class PlayerMotor : MonoBehaviour
     {
         moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
 
-        if(isGrounded)
+        if (isGrounded)
+        {
             rb.AddForce(moveDirection.normalized * movementSpeed * 10f, ForceMode.Force);
-
-        else if(!isGrounded)
+        }
+        else if (!isGrounded)
+        {
             rb.AddForce(moveDirection.normalized * movementSpeed * 10f * airMultiplier, ForceMode.Force);
+        }
     }
 
     private void SpeedControl()
     {
         Vector3 flatVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
 
-        if(flatVel.magnitude > movementSpeed)
+        if (flatVel.magnitude > movementSpeed)
         {
             Vector3 limitedVel = flatVel.normalized * movementSpeed;
             rb.velocity = new Vector3(limitedVel.x, rb.velocity.y, limitedVel.z);
@@ -189,24 +190,29 @@ public class PlayerMotor : MonoBehaviour
         }
 
         currentStamina = Mathf.Clamp(currentStamina, 0f, maxStamina);
+
+        UpdateStaminaUI();
     }
 
-
-    private void UpdateHealthUI()
+    private void UpdateStaminaUI()
     {
         float fillFront = frontStaminaBar.fillAmount;
         float fillBack = backStaminaBar.fillAmount;
         float sFraction = currentStamina / maxStamina;
+
         if (fillBack > sFraction)
         {
             frontStaminaBar.fillAmount = sFraction;
+            backStaminaBar.color = Color.red;
             lerpTimer += Time.deltaTime;
             float percentComplete = lerpTimer / chipSpeed;
             percentComplete = percentComplete * percentComplete;
             backStaminaBar.fillAmount = Mathf.Lerp(fillBack, sFraction, percentComplete);
         }
+
         if (fillFront < sFraction)
         {
+            backStaminaBar.color = Color.green;
             backStaminaBar.fillAmount = sFraction;
             lerpTimer += Time.deltaTime;
             float percentComplete = lerpTimer / chipSpeed;

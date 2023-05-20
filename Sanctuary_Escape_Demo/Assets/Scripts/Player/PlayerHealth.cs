@@ -14,12 +14,14 @@ public class PlayerHealth : MonoBehaviour
 
     private PlayerMotor playerMotor;
     public GameObject grayScreen;
+    public MouseScript mouseScript;
 
     // Start is called before the first frame update
     void Start()
     {
         currentHealth = maxHealth;
         playerMotor = GetComponent<PlayerMotor>();
+        mouseScript = GetComponent<MouseScript>();
     }
 
     // Update is called once per frame
@@ -76,16 +78,9 @@ public class PlayerHealth : MonoBehaviour
     private void Die()
     {
         playerMotor.enabled = false;
+        mouseScript.enabled = false;
         //grayScreen.SetActive(true);
 
-        MouseScript mouseScript = GetComponent<MouseScript>();
-        if (mouseScript != null)
-        {
-            mouseScript.SetDead(true);
-        }
-
-        // Optionally, you can add additional death-related functionality here,
-        // such as playing death animation, displaying game over screen, etc.
     }
 
 }

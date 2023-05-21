@@ -6,8 +6,10 @@ public class Cloud : MonoBehaviour
     public GameObject smallBallPrefab;
     public float rotationSpeed = 5f;
     public float shootingInterval = 2f;
-    public float ballSpeed = 10f;
+    public float originalBallSpeed = 10f;
+    private float ballSpeed;
     public float destructionDelay = 2f;
+    public float maxViewRange = 10f;
 
     private float shootingTimer;
     public GameObject targetPositionObject;
@@ -38,7 +40,21 @@ public class Cloud : MonoBehaviour
     {
         if (targetPositionObject != null)
         {
+            // Calculate direction towards the target position
             Vector3 direction = targetPositionObject.transform.position - transform.position;
+
+            // Check if there is an obstacle between the cloud and the target
+            RaycastHit hit;
+            if (Physics.Raycast(transform.position, direction, out hit, maxViewRange))
+            {
+                if (hit.collider.gameObject != targetPositionObject)
+                {
+                    // There is an obstacle, so don't rotate towards the target
+                    return;
+                }
+            }
+
+            // Rotate towards the target position
             Quaternion targetRotation = Quaternion.LookRotation(direction);
             transform.rotation = Quaternion.Lerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
         }
@@ -57,6 +73,7 @@ public class Cloud : MonoBehaviour
             // Apply a stronger force to the ball towards the target position
             Rigidbody ballRigidbody = ball.GetComponent<Rigidbody>();
             ballRigidbody.mass = 0.5f;
+            ballSpeed = originalBallSpeed + Random.Range(-2, 3);
             ballRigidbody.AddForce(direction.normalized * ballSpeed * 1.5f, ForceMode.Impulse);
         }
     }

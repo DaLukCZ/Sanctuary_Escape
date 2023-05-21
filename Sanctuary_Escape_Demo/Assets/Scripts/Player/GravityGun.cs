@@ -14,63 +14,65 @@ public class GravityGun : MonoBehaviour
 
     Rigidbody grabbedRB;
     bool isLerping = false;
+    public bool isGravityGunPickedUp = false;
     Vector3 previousMousePosition;
 
     void Update()
     {
-        if (grabbedRB)
-        {
-            if (isLerping)
+        if (isGravityGunPickedUp)
+        { 
+            if (grabbedRB)
             {
-                grabbedRB.position = Vector3.Lerp(grabbedRB.position, objectHolder.position, Time.deltaTime * lerpSpeed);
-                if (Vector3.Distance(grabbedRB.position, objectHolder.position) < 0.01f)
+                if (isLerping)
                 {
-                    isLerping = false;
+                    grabbedRB.position = Vector3.Lerp(grabbedRB.position, objectHolder.position, Time.deltaTime * lerpSpeed);
+                    if (Vector3.Distance(grabbedRB.position, objectHolder.position) < 0.01f)
+                    {
+                        isLerping = false;
+                    }
+                }
+
+                if (Input.GetKeyDown(KeyCode.T))
+                {
+                    ThrowObject();
                 }
             }
 
-            if (Input.GetKeyDown(KeyCode.T))
+            if (Input.GetKeyDown(KeyCode.F))
             {
-                ThrowObject();
-            }
-        }
-
-        if (Input.GetKeyDown(KeyCode.F))
-        {
-            if (grabbedRB)
-            {
-                ReleaseObject();
-            }
-            else
-            {
-                Collider[] colliders = Physics.OverlapSphere(transform.position, catchRadius);
-                foreach (Collider collider in colliders)
+                if (grabbedRB)
                 {
-                    Rigidbody rb = collider.gameObject.GetComponent<Rigidbody>();
-                    if (rb)
+                    ReleaseObject();
+                }
+                else
+                {
+                    Collider[] colliders = Physics.OverlapSphere(transform.position, catchRadius);
+                    foreach (Collider collider in colliders)
                     {
-                        grabbedRB = rb;
-                        grabbedRB.isKinematic = true;
-                        grabbedRB.gameObject.layer = LayerMask.NameToLayer("GrabbedObject");
-
-                        // Check if the grabbed object is a smallEnemyBall
-                        BallProjectile smallEnemyBall = grabbedRB.gameObject.GetComponent<BallProjectile>();
-                        if (smallEnemyBall != null && smallEnemyBall.isPlayerBall)
+                        Rigidbody rb = collider.gameObject.GetComponent<Rigidbody>();
+                        if (rb)
                         {
-                            // Set the isPlayerBall property to true to indicate it's the player's ball
-                            smallEnemyBall.isPlayerBall = true;
+                            grabbedRB = rb;
+                            grabbedRB.isKinematic = true;
+                            grabbedRB.gameObject.layer = LayerMask.NameToLayer("GrabbedObject");
+
+                            // Check if the grabbed object is a smallEnemyBall
+                            BallProjectile smallEnemyBall = grabbedRB.gameObject.GetComponent<BallProjectile>();
+                            if (smallEnemyBall != null && smallEnemyBall.isPlayerBall)
+                            {
+                                // Set the isPlayerBall property to true to indicate it's the player's ball
+                                smallEnemyBall.isPlayerBall = true;
+                            }
+
+                            isLerping = true;
+
+                            break; // Break out of the loop after grabbing the first object
                         }
-
-                        isLerping = true;
-
-                        break; // Break out of the loop after grabbing the first object
                     }
                 }
             }
         }
     }
-
-
 
     void FixedUpdate()
     {

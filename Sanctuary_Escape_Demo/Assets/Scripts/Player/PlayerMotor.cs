@@ -45,12 +45,14 @@ public class PlayerMotor : MonoBehaviour
     private float lerpTimer;
     public Image backStaminaBar;
 
-    float horizontalInput;
-    float verticalInput;
+    private float horizontalInput;
+    private float verticalInput;
+    private Vector3 moveDirection;
+    private float staminaTimer;
+    private float sprintDuration;
+    private float fixedTimeStep = 0.1f;
 
-    Vector3 moveDirection;
-
-    Rigidbody rb;
+    private Rigidbody rb;
 
     public MovementState state;
     public enum MovementState
@@ -60,6 +62,9 @@ public class PlayerMotor : MonoBehaviour
         Crouching,
         Air
     }
+
+    private bool sprintingReady; // Indicates if the player is ready to sprint
+    private float sprintCooldownTimer; // Timer to track the delay before stamina starts recharging
 
     // Start is called before the first frame update
     void Start()
@@ -114,11 +119,19 @@ public class PlayerMotor : MonoBehaviour
             state = MovementState.Crouching;
             movementSpeed = crouchSpeed;
         }
+        else if (Input.GetKey(sprintKey))
+        {
+            transform.localScale = new Vector3(transform.localScale.x, startYScale, transform.localScale.z);
+            state = MovementState.Sprinting;
+            movementSpeed = sprintSpeed;
+            isSprinting = true;
+        }
         else
         {
             transform.localScale = new Vector3(transform.localScale.x, startYScale, transform.localScale.z);
-            state = isGrounded && Input.GetKey(sprintKey) ? MovementState.Sprinting : MovementState.Walking;
-            movementSpeed = isSprinting ? sprintSpeed : walkSpeed;
+            state = MovementState.Walking;
+            movementSpeed = walkSpeed;
+            isSprinting = false;
         }
     }
 
@@ -129,16 +142,21 @@ public class PlayerMotor : MonoBehaviour
             state = MovementState.Crouching;
             movementSpeed = crouchSpeed;
         }
-
-        if (isGrounded && Input.GetKeyDown(sprintKey))
-        {
-            state = MovementState.Sprinting;
-            movementSpeed = sprintSpeed;
-        }
         else if (isGrounded)
         {
-            state = MovementState.Walking;
-            movementSpeed = walkSpeed;
+            if ((Input.GetKeyDown(sprintKey) || (Input.GetKeyDown(jumpKey) && isSprinting)) && currentStamina > 0.01f)
+            {
+                state = MovementState.Sprinting;
+                movementSpeed = sprintSpeed;
+                isSprinting = true;
+                sprintCooldownTimer = 0f; // Reset the cooldown timer when sprinting starts
+            }
+            else
+            {
+                state = MovementState.Walking;
+                movementSpeed = walkSpeed;
+                isSprinting = false;
+            }
         }
         else
         {
@@ -184,40 +202,51 @@ public class PlayerMotor : MonoBehaviour
 
     private void HandleStamina()
     {
-        if (currentStamina < maxStamina && !isSprinting)
+        if (isSprinting)
         {
-            currentStamina += staminaRecoveryRate * Time.deltaTime;
+            if (currentStamina > 0)
+            {
+                currentStamina -= Time.deltaTime * 10f; // Stamina decreases by 10 per second of sprinting
+                sprintDuration += Time.deltaTime;
+                if (sprintDuration >= 10f) // Limit the sprinting duration to 10 seconds
+                {
+                    currentStamina = 0f;
+                    isSprinting = false;
+                    sprintDuration = 0f;
+                }
+            }
+            else
+            {
+                currentStamina = 0f;
+                isSprinting = false;
+                sprintDuration = 0f;
+            }
         }
-
-        currentStamina = Mathf.Clamp(currentStamina, 0f, maxStamina);
+        else
+        {
+            if (currentStamina < maxStamina)
+            {
+                staminaTimer += Time.deltaTime;
+                if (staminaTimer >= 2f) // Stamina starts recovering after 2 seconds of not sprinting
+                {
+                    currentStamina += 20f * Time.deltaTime; // Stamina recovers at a rate of 20 per second
+                    currentStamina = Mathf.Clamp(currentStamina, 0f, maxStamina);
+                }
+            }
+            else
+            {
+                staminaTimer = 0f;
+            }
+        }
 
         UpdateStaminaUI();
     }
 
     private void UpdateStaminaUI()
     {
-        float fillFront = frontStaminaBar.fillAmount;
-        float fillBack = backStaminaBar.fillAmount;
         float sFraction = currentStamina / maxStamina;
-
-        if (fillBack > sFraction)
-        {
-            frontStaminaBar.fillAmount = sFraction;
-            backStaminaBar.color = Color.red;
-            lerpTimer += Time.deltaTime;
-            float percentComplete = lerpTimer / chipSpeed;
-            percentComplete = percentComplete * percentComplete;
-            backStaminaBar.fillAmount = Mathf.Lerp(fillBack, sFraction, percentComplete);
-        }
-
-        if (fillFront < sFraction)
-        {
-            backStaminaBar.color = Color.green;
-            backStaminaBar.fillAmount = sFraction;
-            lerpTimer += Time.deltaTime;
-            float percentComplete = lerpTimer / chipSpeed;
-            percentComplete = percentComplete * percentComplete;
-            frontStaminaBar.fillAmount = Mathf.Lerp(fillFront, backStaminaBar.fillAmount, percentComplete);
-        }
+        Debug.Log(currentStamina);
+        frontStaminaBar.fillAmount = sFraction;
+        backStaminaBar.fillAmount = sFraction;
     }
 }

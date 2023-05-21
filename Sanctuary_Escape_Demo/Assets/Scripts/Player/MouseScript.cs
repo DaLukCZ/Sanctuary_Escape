@@ -30,7 +30,6 @@ public class MouseScript : MonoBehaviour
     {
             float mouseX = Input.GetAxis("Mouse X") * Time.deltaTime * sensX;
             float mouseY = Input.GetAxis("Mouse Y") * Time.deltaTime * sensY;
-            Debug.Log(Mathf.Abs(Input.GetAxis("Mouse X")) * 10);
             yRotation += mouseX;
 
             xRotation -= mouseY;

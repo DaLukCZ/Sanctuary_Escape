@@ -9,6 +9,8 @@ public class GravityGun : MonoBehaviour
     [SerializeField] float throwForce = 20f;
     [SerializeField] float lerpSpeed = 20f;
     [SerializeField] Transform objectHolder;
+    [SerializeField] float catchRadius = 3f;
+    [SerializeField] Color catchRadiusColor = Color.red;
 
     Rigidbody grabbedRB;
     bool isLerping = false;
@@ -41,24 +43,34 @@ public class GravityGun : MonoBehaviour
             }
             else
             {
-                RaycastHit hit;
-                Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f));
-                if (Physics.Raycast(ray, out hit, maxGrabDistance))
+                Collider[] colliders = Physics.OverlapSphere(transform.position, catchRadius);
+                foreach (Collider collider in colliders)
                 {
-                    if (Vector3.Distance(hit.collider.transform.position, transform.position) <= maxGrabDistance)
+                    Rigidbody rb = collider.gameObject.GetComponent<Rigidbody>();
+                    if (rb)
                     {
-                        grabbedRB = hit.collider.gameObject.GetComponent<Rigidbody>();
-                        if (grabbedRB)
+                        grabbedRB = rb;
+                        grabbedRB.isKinematic = true;
+                        grabbedRB.gameObject.layer = LayerMask.NameToLayer("GrabbedObject");
+
+                        // Check if the grabbed object is a smallEnemyBall
+                        BallProjectile smallEnemyBall = grabbedRB.gameObject.GetComponent<BallProjectile>();
+                        if (smallEnemyBall != null && smallEnemyBall.isPlayerBall)
                         {
-                            grabbedRB.isKinematic = true;
-                            grabbedRB.gameObject.layer = LayerMask.NameToLayer("GrabbedObject");
-                            isLerping = true;
+                            // Set the isPlayerBall property to true to indicate it's the player's ball
+                            smallEnemyBall.isPlayerBall = true;
                         }
+
+                        isLerping = true;
+
+                        break; // Break out of the loop after grabbing the first object
                     }
                 }
             }
         }
     }
+
+
 
     void FixedUpdate()
     {
@@ -104,8 +116,39 @@ public class GravityGun : MonoBehaviour
 
             grabbedRB.AddForce(throwDirection * throwForce, ForceMode.VelocityChange);
             grabbedRB.gameObject.layer = LayerMask.NameToLayer("Default");
+
+            // Check if the thrown object is a box and if it collides with an enemy
+            BoxCollider boxCollider = grabbedRB.gameObject.GetComponent<BoxCollider>();
+            if (boxCollider != null)
+            {
+                Collider[] colliders = Physics.OverlapBox(boxCollider.bounds.center, boxCollider.bounds.extents, boxCollider.transform.rotation, LayerMask.GetMask("Enemy"));
+                foreach (Collider collider in colliders)
+                {
+                    // Get the EnemyHealth component from the collided enemy
+                    EnemyHealth enemyHealth = collider.gameObject.GetComponent<EnemyHealth>();
+                    if (enemyHealth != null)
+                    {
+                        // Calculate the damage amount based on the object's speed and mass
+                        float damageAmount = grabbedRB.velocity.magnitude * grabbedRB.mass;
+
+                        // Deal damage to the enemy
+                        enemyHealth.TakeDamage(damageAmount);
+                        Debug.Log(enemyHealth.currentHealth);
+                    }
+                }
+            }
+
+            // Set the owner of the thrown ball
+            BallProjectile ballProjectile = grabbedRB.gameObject.GetComponent<BallProjectile>();
+            if (ballProjectile != null)
+            {
+                ballProjectile.isPlayerBall = true; // Set the owner to the player
+            }
+
             grabbedRB = null;
             isLerping = false;
         }
     }
+
 }
+

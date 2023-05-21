@@ -9,10 +9,6 @@ public class Poison : Interactable
 
     protected override void Interact()
     {
-        // Heal the player
         playerHealth.TakeDamage(dmgAmount);
-
-        // Disable the medkit object
-        //gameObject.SetActive(false);
     }
 }
